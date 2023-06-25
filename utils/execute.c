@@ -6,7 +6,6 @@
 #include <sys/wait.h>
 #include <unistd.h>
 #include <spawn.h>
-#include <sys/wait.h>
 
 void handle_built_in(Parsed *parsed_command) {
   if (strstr(parsed_command->command, "help")) {
@@ -31,15 +30,24 @@ void handle_built_in(Parsed *parsed_command) {
               "YOU NEED TO PROVIDE 2 VALUES, YOUR ID AND THE OTHER SHELL\n");
       return;
     }
-    pid_t pid = fork();
-    if (pid == -1) {
+    pid_t pid;
+    posix_spawn_file_actions_t action;
+    posix_spawn_file_actions_init(&action);
+
+    // Prepare file actions (if needed)
+    // ...
+
+    // Spawn the process
+    if (posix_spawn(&pid, "pandash_talk", &action, NULL, parsed_command->flags, NULL) != 0) {
+      perror("could not execute");
       return;
-    } else if (pid == 0) {
-      pandash_talk(parsed_command->flags[1], parsed_command->flags[2]);
-      abort();
     } else {
       wait(NULL);
     }
+
+    // Clean up file actions (if needed)
+    // ...
+
     return;
   }
   if (strstr(parsed_command->command, "pandash_send")) {
@@ -48,34 +56,29 @@ void handle_built_in(Parsed *parsed_command) {
                       "YOUR QOUTED MESSAGE\n");
       return;
     }
-    pid_t pid = fork();
-    if (pid == -1) {
+    pid_t pid;
+    posix_spawn_file_actions_t action;
+    posix_spawn_file_actions_init(&action);
+
+    // Prepare file actions (if needed)
+    // ...
+
+    // Spawn the process
+    if (posix_spawn(&pid, "pandash_send", &action, NULL, parsed_command->flags, NULL) != 0) {
+      perror("could not execute");
       return;
-    } else if (pid == 0) {
-      pandash_send(parsed_command->flags[1], parsed_command->flags[2]);
-      abort();
     } else {
       wait(NULL);
     }
+
+    // Clean up file actions (if needed)
+    // ...
+
     return;
   }
 }
 
 int spawn_proc(Parsed *parsed_command) {
-  pid_t pid = fork();
-  if (pid == -1) {
-    return -1;
-  } else if (pid == 0) {
-    execvp(parsed_command->flags[0], parsed_command->flags);
-    perror("could not execute");
-    abort();
-  } else {
-    wait(NULL);
-  }
-  return pid;
-}
-
-int pipes(Parsed *parsed_command) {
   pid_t pid;
   posix_spawn_file_actions_t action;
   posix_spawn_file_actions_init(&action);
