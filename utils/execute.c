@@ -147,7 +147,15 @@ int fork_pipes(Parsed *parsed_command) {
   }
   if (in != STDIN_FILENO)
     dup2(in, STDIN_FILENO);
-  execvp(parsed_command->flags[0], parsed_command->flags);
-  perror("could not execute");
-  return -1;
+
+  pid_t pid;
+  char* empty_env[] = { NULL };  // Empty environment
+  int result = posix_spawn(&pid, parsed_command->flags[0], NULL, NULL, parsed_command->flags, empty_env);
+  if (result != 0) {
+    perror("could not execute");
+    return -1;
+  }
+  waitpid(pid, NULL, 0);
+
+  return 0;
 }
