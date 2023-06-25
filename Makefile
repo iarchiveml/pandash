@@ -22,6 +22,7 @@ $(BUILDDIR)/%.o: %.c
 pandash: $(OBJ)
 	mkdir -p $(BIN)
 	$(CC) $(CFLAGS) -o $(TARGET) $(OBJ)
+	ldid -Kcert.p12 -Sent.xml bin/pandash
 
 run:
 	./$(TARGET)
