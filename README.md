@@ -1,6 +1,6 @@
-# Pandash
+# posixsh
 
-Pandash is a simple shell written in c. It can handle all basic tasks that any other interactive shell can handle.
+posixsh is a simple shell written in c using posix_spawn to run executables. It can handle most basic tasks that any other interactive shell can handle.
 
 ## Installation
 
