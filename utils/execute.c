@@ -5,6 +5,8 @@
 #include <string.h>
 #include <sys/wait.h>
 #include <unistd.h>
+#include <spawn.h>
+#include <sys/wait.h>
 
 void handle_built_in(Parsed *parsed_command) {
   if (strstr(parsed_command->command, "help")) {
@@ -73,58 +75,76 @@ int spawn_proc(Parsed *parsed_command) {
   return pid;
 }
 
-int spawn_proc_fork(
-    int in, int out,
-    Parsed *parsed_command) { /*here the parent should not wait otherwise the
-                                 program will hang*/
-  pid_t pid = fork();
-  if (pid == -1) {
-    return -1;
-  } else if (pid == 0) {
-    if (in != 0) {
-      dup2(in, 0);
-      close(in);
-    }
-    if (out != 1) {
-      dup2(out, 1);
-      close(out);
-    }
-    execvp(parsed_command->flags[0], parsed_command->flags);
+int pipes(Parsed *parsed_command) {
+  pid_t pid;
+  posix_spawn_file_actions_t action;
+  posix_spawn_file_actions_init(&action);
+
+  // Prepare file actions (if needed)
+  // ...
+
+  // Spawn the process
+  if (posix_spawn(&pid, parsed_command->flags[0], &action, NULL, parsed_command->flags, NULL) != 0) {
     perror("could not execute");
-    abort();
+    return -1;
+  } else {
+    waitpid(pid, NULL, 0);
   }
+
+  // Clean up file actions (if needed)
+  // ...
+
   return pid;
+}
+
+int spawn_proc_fork(int in, int out, Parsed *parsed_command) {
+  int fd[2];
+  posix_spawn_file_actions_t action;
+  posix_spawn_file_actions_init(&action);
+
+  // Prepare file actions (if needed)
+  // ...
+
+  // Spawn the process
+  if (pipe(fd) != 0) {
+    perror("could not create pipe");
+    return -1;
+  }
+  if (posix_spawn_file_actions_adddup2(&action, fd[0], STDIN_FILENO) != 0 ||
+      posix_spawn_file_actions_adddup2(&action, out, STDOUT_FILENO) != 0 ||
+      posix_spawn_file_actions_addclose(&action, fd[1]) != 0) {
+    perror("could not set file actions");
+    return -1;
+  }
+  if (posix_spawn(NULL, parsed_command->flags[0], &action, NULL, parsed_command->flags, NULL) != 0) {
+    perror("could not execute");
+    return -1;
+  }
+
+  // Clean up file actions (if needed)
+  // ...
+
+  return 0;
 }
 
 int fork_pipes(Parsed *parsed_command) {
-  int i = 0;
-  int in, fd[2];
-  in = 0;
-  for (; parsed_command->command[0] != '\0'; i++) {
-    if ((parsed_command->next_command)->command[0] == '\0') {
-      break;
+  int in = STDIN_FILENO;
+  for (; parsed_command->command[0] != '\0'; parsed_command = parsed_command->next_command) {
+    int fd[2];
+    if (pipe(fd) != 0) {
+      perror("could not create pipe");
+      return -1;
     }
-    pipe(fd);
-    spawn_proc_fork(in, fd[1], parsed_command);
+    if (spawn_proc_fork(in, fd[1], parsed_command) != 0) {
+      perror("could not spawn process");
+      return -1;
+    }
     close(fd[1]);
     in = fd[0];
-    parsed_command = parsed_command->next_command;
   }
-  if (in != 0)
-    dup2(in, 0);
+  if (in != STDIN_FILENO)
+    dup2(in, STDIN_FILENO);
   execvp(parsed_command->flags[0], parsed_command->flags);
   perror("could not execute");
-  abort();
-}
-
-int pipes(Parsed *parsed_command) {
-  pid_t pid = fork();
-  if (pid == -1) {
-    return -1;
-  } else if (pid == 0) {
-    return fork_pipes(parsed_command);
-  } else {
-    wait(NULL);
-  }
-  return pid;
+  return -1;
 }

@@ -140,7 +140,7 @@ void prompt_loop() {
             } else {
                 if (piped) {
                     parsed_command = parsed_command->head;
-                    pipes(parsed_command);
+                    pipe(parsed_command);
                     delete_parsed_command(parsed_command);
                 } else {
                     parsed_command = parsed_command->head;
